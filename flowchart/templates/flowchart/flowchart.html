@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ settings.title }}</title>
+
+    <!-- React și React DOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+    <!-- Babel pentru JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- React Flow (using older reactflow package with proper UMD build) -->
+    <script src="https://unpkg.com/reactflow@11.11.4/dist/umd/index.js" crossorigin></script>
+    <link href="https://unpkg.com/reactflow@11.11.4/dist/style.css" rel="stylesheet" />
+
+    <!-- Dagre for automatic graph layout -->
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js" crossorigin></script>
+
+    <!-- html-to-image pentru export -->
+    <script src="https://unpkg.com/html-to-image@1.11.11/dist/html-to-image.js" crossorigin></script>
+
+    <!-- Django settings passed to JavaScript -->
+    <script>
+        window.FLOWCHART_SETTINGS = {
+            title: "{{ settings.title|escapejs }}",
+            subtitle: "{{ settings.subtitle|escapejs }}",
+            backgroundColor: "{{ settings.background_color|escapejs }}",
+            nodeBorderRadius: {{ settings.node_border_radius }},
+            minZoom: parseFloat("{{ settings.min_zoom }}".replace(",", ".")),
+            maxZoom: parseFloat("{{ settings.max_zoom }}".replace(",", ".")),
+            defaultZoom: parseFloat("{{ settings.default_zoom }}".replace(",", ".")),
+            exportWatermark: "{{ settings.export_watermark|escapejs }}"
+        };
+    </script>
+
+    <!-- Google Fonts - Distinctive typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+
+    <style>
+        /* ===================== */
+        /* CSS Custom Properties */
+        /* ===================== */
+        :root {
+            /* Colors - Professional Legal Blue Theme */
+            --color-primary: #1e40af;
+            --color-primary-light: #3b82f6;
+            --color-primary-dark: #1e3a8a;
+            --color-accent: #0ea5e9;
+            --color-accent-warm: #f59e0b;
+
+            /* Semantic colors */
+            --color-success: #059669;
+            --color-warning: #d97706;
+            --color-error: #dc2626;
+            --color-info: #7c3aed;
+
+            /* Neutrals */
+            --color-text-primary: #0f172a;
+            --color-text-secondary: #475569;
+            --color-text-muted: #94a3b8;
+            --color-border: #e2e8f0;
+            --color-border-light: #f1f5f9;
+            --color-surface: #ffffff;
+            --color-surface-elevated: #ffffff;
+            --color-background: #f8fafc;
+
+            /* Typography */
+            --font-display: 'DM Serif Display', Georgia, serif;
+            --font-body: 'DM Sans', system-ui, sans-serif;
+
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+            --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+            --shadow-glow: 0 0 20px rgba(30, 64, 175, 0.15);
+
+            /* Border radius */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+
+            /* Transitions */
+            --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--color-background);
+            color: var(--color-text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        #root {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .flowchart-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Header */
+        .flowchart-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to bottom,
+                rgba(255, 255, 255, 0.97) 0%,
+                rgba(255, 255, 255, 0.92) 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: var(--space-md) var(--space-lg);
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .flowchart-title {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: var(--color-text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .flowchart-subtitle {
+            font-family: var(--font-body);
+            font-size: 0.8125rem;
+            color: var(--color-text-secondary);
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        .header-left {
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        /* Search */
+        .search-container {
+            position: relative;
+            width: 320px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-family: var(--font-body);
+            font-size: 0.875rem;
+            color: var(--color-text-primary);
+            background: var(--color-surface);
+            outline: none;
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        .search-input::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        .search-input:focus {
+            border-color: var(--color-primary-light);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-muted);
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            margin-top: 6px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+            z-index: 200;
+        }
+
+        .search-result-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--color-border-light);
+            transition: background-color var(--transition-fast);
+        }
+
+        .search-result-item:hover {
+            background-color: var(--color-border-light);
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-title {
+            font-weight: 500;
+            color: var(--color-text-primary);
+            font-size: 0.875rem;
+        }
+
+        .search-result-subtitle {
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+            margin-top: 3px;
+        }
+
+        .search-section-title {
+            padding: 10px 16px 8px;
+            background: var(--color-border-light);
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* Export buttons */
+        .export-buttons {
+            display: flex;
+            gap: var(--space-sm);
+        }
+
+        .export-btn {
+            padding: 10px 18px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            background: var(--color-surface);
+            font-family: var(--font-body);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--color-text-primary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .export-btn:hover {
+            background: var(--color-border-light);
+            border-color: var(--color-text-muted);
+        }
+
+        .export-btn.primary {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+
+        .export-btn.primary:hover {
+            background: var(--color-primary-dark);
+            border-color: var(--color-primary-dark);
+        }
+
+        /* Custom Node Styles */
+        .procedure-node {
+            background: var(--color-surface);
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            min-width: 220px;
+            max-width: 340px;
+            box-shadow: var(--shadow-md);
+            transition: box-shadow var(--transition-base), transform var(--transition-base);
+        }
+
+        .procedure-node:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-1px);
+        }
+
+        .procedure-node.selected {
+            box-shadow: 0 0 0 2px var(--color-primary-light), var(--shadow-md);
+        }
+
+        .procedure-node.highlighted {
+            box-shadow: 0 0 0 3px var(--color-accent-warm);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4), var(--shadow-md); }
+            50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.2), var(--shadow-md); }
+        }
+
+        .procedure-node.start {
+            border-color: var(--color-success);
+            border-left-width: 4px;
+        }
+
+        .procedure-node.end {
+            border-color: var(--color-error);
+            border-left-width: 4px;
+        }
+
+        .procedure-node.decision {
+            border-color: var(--color-warning);
+            border-left-width: 4px;
+        }
+
+        .procedure-node.document {
+            border-color: var(--color-info);
+            border-left-width: 4px;
+        }
+
+        .procedure-node.subprocess {
+            border-color: var(--color-accent);
+            border-left-width: 4px;
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .node-title {
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 0.9375rem;
+            color: var(--color-text-primary);
+            line-height: 1.4;
+            flex: 1;
+        }
+
+        .node-expand-badge {
+            background: var(--color-primary);
+            color: white;
+            font-size: 0.6875rem;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color var(--transition-fast), transform var(--transition-fast);
+            flex-shrink: 0;
+        }
+
+        .node-expand-badge:hover {
+            background: var(--color-primary-dark);
+            transform: scale(1.05);
+        }
+
+        .node-description {
+            font-size: 0.8125rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 12px;
+            line-height: 1.55;
+            display: -webkit-box;
+            line-clamp: 3;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .node-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .article-badge {
+            background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+            color: var(--color-primary);
+            font-size: 0.6875rem;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: 1px solid rgba(30, 64, 175, 0.1);
+        }
+
+        .article-badge:hover {
+            background: linear-gradient(135deg, #dbeafe 0%, #bae6fd 100%);
+            transform: translateY(-1px);
+        }
+
+        .deadline-badge {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #92400e;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(146, 64, 14, 0.1);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl), 0 0 60px rgba(30, 64, 175, 0.1);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(24px) scale(0.98); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, var(--color-border-light) 0%, transparent 100%);
+        }
+
+        .modal-title {
+            font-family: var(--font-display);
+            font-size: 1.375rem;
+            font-weight: 400;
+            color: var(--color-text-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.75rem;
+            cursor: pointer;
+            color: var(--color-text-muted);
+            padding: 4px 8px;
+            line-height: 1;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-fast);
+        }
+
+        .modal-close:hover {
+            color: var(--color-text-primary);
+            background: var(--color-border-light);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .article-chapter {
+            font-size: 0.6875rem;
+            color: var(--color-primary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+        }
+
+        .article-content {
+            font-size: 0.9375rem;
+            line-height: 1.75;
+            color: var(--color-text-secondary);
+            white-space: pre-wrap;
+        }
+
+        .article-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 20px;
+            color: var(--color-primary-light);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: color var(--transition-fast);
+        }
+
+        .article-link:hover {
+            color: var(--color-primary);
+            text-decoration: underline;
+        }
+
+        .related-stages {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--color-border);
+        }
+
+        .related-stages-title {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .related-stage-item {
+            padding: 10px 14px;
+            background: var(--color-border-light);
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+            font-size: 0.875rem;
+            color: var(--color-text-primary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border: 1px solid transparent;
+        }
+
+        .related-stage-item:hover {
+            background: var(--color-surface);
+            border-color: var(--color-border);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Loading state */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 16px;
+            font-family: var(--font-body);
+            font-size: 0.9375rem;
+            color: var(--color-text-secondary);
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* React Flow overrides */
+        .react-flow__node {
+            cursor: pointer;
+        }
+
+        .react-flow__edge-path {
+            stroke-width: 2;
+        }
+
+        .react-flow__edge-text {
+            font-family: var(--font-body);
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .react-flow__controls {
+            bottom: 24px;
+            left: 24px;
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--color-border);
+        }
+
+        .react-flow__controls button {
+            background: var(--color-surface);
+            border-color: var(--color-border);
+            transition: background var(--transition-fast);
+        }
+
+        .react-flow__controls button:hover {
+            background: var(--color-border-light);
+        }
+
+        .react-flow__minimap {
+            bottom: 24px;
+            right: 24px;
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--color-border);
+        }
+
+        /* ===================== */
+        /* Mobile Styles         */
+        /* ===================== */
+
+        /* Mobile menu button */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .mobile-menu-btn:hover {
+            color: #1f2937;
+        }
+
+        /* Mobile search overlay */
+        .mobile-search-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 150;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .mobile-search-overlay.active {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 60px;
+        }
+
+        .mobile-search-container {
+            background: white;
+            width: 95%;
+            max-width: 400px;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+        }
+
+        .mobile-search-container .search-input {
+            width: 100%;
+            font-size: 16px; /* Prevents iOS zoom */
+        }
+
+        .mobile-search-container .search-results {
+            position: relative;
+            margin-top: 8px;
+            max-height: 60vh;
+        }
+
+        /* Tablet (768px and below) */
+        @media (max-width: 768px) {
+            .flowchart-header {
+                padding: 12px 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .flowchart-title {
+                font-size: 1.125rem;
+            }
+
+            .flowchart-subtitle {
+                font-size: 0.75rem;
+            }
+
+            .search-container {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: flex;
+            }
+
+            .export-buttons {
+                order: 3;
+                width: 100%;
+                justify-content: flex-end;
+            }
+
+            .export-btn {
+                padding: 6px 12px;
+                font-size: 0.75rem;
+            }
+
+            .export-btn span {
+                display: none;
+            }
+
+            /* Nodes - larger for tablet readability */
+            .procedure-node {
+                min-width: 220px;
+                max-width: 320px;
+                padding: 14px 16px;
+            }
+
+            .node-title {
+                font-size: 1rem;
+            }
+
+            .node-description {
+                font-size: 0.875rem;
+                line-clamp: 3;
+                -webkit-line-clamp: 3;
+            }
+
+            .node-expand-badge,
+            .article-badge,
+            .deadline-badge {
+                font-size: 0.75rem;
+                padding: 4px 8px;
+            }
+
+            /* Modal */
+            .modal-content {
+                width: 95%;
+                max-height: 90vh;
+                margin: 16px;
+                border-radius: 16px;
+            }
+
+            .modal-header {
+                padding: 16px;
+            }
+
+            .modal-title {
+                font-size: 1.125rem;
+            }
+
+            .modal-body {
+                padding: 16px;
+            }
+
+            .article-content {
+                font-size: 0.875rem;
+            }
+
+            /* React Flow Controls */
+            .react-flow__controls {
+                bottom: 16px;
+                left: 16px;
+            }
+
+            .react-flow__controls button {
+                width: 28px;
+                height: 28px;
+            }
+
+            /* Hide minimap on tablet */
+            .react-flow__minimap {
+                display: none;
+            }
+        }
+
+        /* Mobile (480px and below) */
+        @media (max-width: 480px) {
+            .flowchart-header {
+                padding: 10px 12px;
+            }
+
+            .header-left {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .flowchart-title {
+                font-size: 1rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .flowchart-subtitle {
+                display: none;
+            }
+
+            .export-buttons {
+                order: 0;
+                width: auto;
+            }
+
+            .export-btn {
+                padding: 8px;
+            }
+
+            .export-btn svg {
+                width: 18px;
+                height: 18px;
+            }
+
+            /* Nodes - full size for readability on mobile */
+            .procedure-node {
+                min-width: 240px;
+                max-width: 320px;
+                padding: 14px 16px;
+            }
+
+            .node-header {
+                margin-bottom: 8px;
+            }
+
+            .node-title {
+                font-size: 1rem;
+                line-height: 1.4;
+            }
+
+            .node-description {
+                display: block;
+                font-size: 0.875rem;
+                line-clamp: 4;
+                -webkit-line-clamp: 4;
+                line-height: 1.5;
+            }
+
+            .node-footer {
+                gap: 6px;
+            }
+
+            .node-expand-badge,
+            .article-badge,
+            .deadline-badge {
+                font-size: 0.75rem;
+                padding: 4px 8px;
+            }
+
+            /* Modal fullscreen on mobile */
+            .modal-overlay {
+                align-items: flex-end;
+            }
+
+            .modal-content {
+                width: 100%;
+                max-height: 85vh;
+                margin: 0;
+                border-radius: 16px 16px 0 0;
+                animation: slideUpMobile 0.3s ease-out;
+            }
+
+            @keyframes slideUpMobile {
+                from { transform: translateY(100%); }
+                to { transform: translateY(0); }
+            }
+
+            .modal-close {
+                font-size: 1.75rem;
+                padding: 8px;
+            }
+
+            /* Search results on mobile */
+            .search-result-item {
+                padding: 14px 16px;
+            }
+
+            .related-stage-item {
+                padding: 12px;
+            }
+
+            /* React Flow */
+            .react-flow__controls {
+                bottom: 12px;
+                left: 12px;
+            }
+
+            .react-flow__edge-text {
+                font-size: 9px;
+            }
+        }
+
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .procedure-node:hover {
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            .search-result-item:hover,
+            .related-stage-item:hover {
+                background-color: transparent;
+            }
+
+            .search-result-item:active,
+            .related-stage-item:active {
+                background-color: #f3f4f6;
+            }
+
+            .export-btn:hover {
+                background: white;
+                border-color: #d1d5db;
+            }
+
+            .export-btn:active {
+                background: #f3f4f6;
+            }
+
+            .export-btn.primary:hover {
+                background: #3b82f6;
+            }
+
+            .export-btn.primary:active {
+                background: #2563eb;
+            }
+
+            /* Larger touch targets */
+            .node-expand-badge,
+            .article-badge {
+                padding: 4px 8px;
+                min-height: 24px;
+                display: inline-flex;
+                align-items: center;
+            }
+        }
+
+        /* Landscape mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .flowchart-header {
+                padding: 8px 16px;
+            }
+
+            .flowchart-title {
+                font-size: 1rem;
+            }
+
+            .modal-content {
+                max-height: 95vh;
+            }
+
+            .modal-header {
+                padding: 12px 16px;
+            }
+
+            .modal-body {
+                padding: 12px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    {% verbatim %}
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+        // ReactFlow UMD exposes all exports on window.ReactFlow
+        const RF = window.ReactFlow;
+        console.log('ReactFlow exports:', Object.keys(RF));  // Debug: see available exports
+        const ReactFlowComponent = RF.default || RF.ReactFlow || RF;
+        const Controls = RF.Controls;
+        const MiniMap = RF.MiniMap;
+        const Background = RF.Background;
+        const useNodesState = RF.useNodesState;
+        const useEdgesState = RF.useEdgesState;
+        const useReactFlow = RF.useReactFlow;
+        const ReactFlowProvider = RF.ReactFlowProvider;
+        const Handle = RF.Handle;
+        const Position = RF.Position;
+        const MarkerType = RF.MarkerType;
+
+        // Get settings from Django
+        const SETTINGS = window.FLOWCHART_SETTINGS;
+
+        // Mobile detection
+        const isMobile = () => window.innerWidth <= 768;
+        const isSmallMobile = () => window.innerWidth <= 480;
+
+        // =====================
+        // Custom Node Component
+        // =====================
+        const ProcedureNode = ({ data, selected }) => {
+            const nodeClass = `procedure-node ${data.nodeType} ${selected ? 'selected' : ''} ${data.highlighted ? 'highlighted' : ''}`;
+            const borderStyle = { borderColor: data.categoryColor || '#e5e7eb' };
+
+            return (
+                <div className={nodeClass} style={borderStyle}>
+                    <Handle type="target" position={Position.Top} />
+
+                    <div className="node-header">
+                        <div className="node-title">{data.shortTitle}</div>
+                        {data.childrenCount > 0 && (
+                            <span
+                                className="node-expand-badge"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    data.onExpand && data.onExpand(data.id);
+                                }}
+                            >
+                                {data.expanded ? '−' : '+'} {data.childrenCount}
+                            </span>
+                        )}
+                    </div>
+
+                    {data.description && (
+                        <div className="node-description">{data.description}</div>
+                    )}
+
+                    <div className="node-footer">
+                        {data.articles && data.articles.map(article => (
+                            <span
+                                key={article.id}
+                                className="article-badge"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    data.onArticleClick && data.onArticleClick(article.id, data.id);
+                                }}
+                            >
+                                Art. {article.article_number}
+                            </span>
+                        ))}
+                        {data.deadlineNote && (
+                            <span className="deadline-badge">{data.deadlineNote}</span>
+                        )}
+                    </div>
+
+                    <Handle type="source" position={Position.Bottom} />
+                </div>
+            );
+        };
+
+        const nodeTypes = { procedure: ProcedureNode };
+
+        // =====================
+        // Search Component
+        // =====================
+        const SearchPanel = ({ onNodeSelect, onArticleClick, mobile = false, onClose }) => {
+            const [query, setQuery] = useState('');
+            const [results, setResults] = useState({ stages: [], articles: [] });
+            const [isOpen, setIsOpen] = useState(false);
+            const [loading, setLoading] = useState(false);
+            const debounceRef = useRef(null);
+            const inputRef = useRef(null);
+
+            useEffect(() => {
+                if (mobile && inputRef.current) {
+                    inputRef.current.focus();
+                }
+            }, [mobile]);
+
+            const handleSearch = useCallback((searchQuery) => {
+                if (searchQuery.length < 2) {
+                    setResults({ stages: [], articles: [] });
+                    setIsOpen(false);
+                    return;
+                }
+
+                setLoading(true);
+                fetch(`/api/flowchart/search/?q=${encodeURIComponent(searchQuery)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        setResults(data);
+                        setIsOpen(true);
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        console.error('Search error:', err);
+                        setLoading(false);
+                    });
+            }, []);
+
+            const handleInputChange = (e) => {
+                const value = e.target.value;
+                setQuery(value);
+
+                if (debounceRef.current) {
+                    clearTimeout(debounceRef.current);
+                }
+
+                debounceRef.current = setTimeout(() => {
+                    handleSearch(value);
+                }, 300);
+            };
+
+            const handleStageClick = (stage) => {
+                onNodeSelect(stage.id);
+                setIsOpen(false);
+                setQuery('');
+                if (mobile && onClose) onClose();
+            };
+
+            const handleArticleItemClick = (articleId) => {
+                onArticleClick(articleId);
+                setIsOpen(false);
+                setQuery('');
+                if (mobile && onClose) onClose();
+            };
+
+            const containerClass = mobile ? "mobile-search-container" : "search-container";
+
+            return (
+                <div className={containerClass}>
+                    <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        className="search-input"
+                        placeholder="Căutare etapă sau articol..."
+                        value={query}
+                        onChange={handleInputChange}
+                        onFocus={() => query.length >= 2 && setIsOpen(true)}
+                        onBlur={() => !mobile && setTimeout(() => setIsOpen(false), 200)}
+                    />
+
+                    {isOpen && (results.stages.length > 0 || results.articles.length > 0) && (
+                        <div className="search-results">
+                            {results.stages.length > 0 && (
+                                <>
+                                    <div className="search-section-title">Etape</div>
+                                    {results.stages.map(stage => (
+                                        <div
+                                            key={stage.id}
+                                            className="search-result-item"
+                                            onClick={() => handleStageClick(stage)}
+                                        >
+                                            <div className="search-result-title">{stage.short_title}</div>
+                                            <div className="search-result-subtitle">
+                                                {stage.category_name || 'Fără categorie'}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </>
+                            )}
+
+                            {results.articles.length > 0 && (
+                                <>
+                                    <div className="search-section-title">Articole CPP</div>
+                                    {results.articles.map(article => (
+                                        <div
+                                            key={article.id}
+                                            className="search-result-item"
+                                            onClick={() => handleArticleItemClick(article.id)}
+                                        >
+                                            <div className="search-result-title">Art. {article.article_number}</div>
+                                            <div className="search-result-subtitle">{article.title}</div>
+                                        </div>
+                                    ))}
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // =====================
+        // Article Modal
+        // =====================
+        const ArticleModal = ({ articleId, sourceStageId, onClose, onStageClick }) => {
+            const [article, setArticle] = useState(null);
+            const [relatedStages, setRelatedStages] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                if (!articleId) return;
+
+                setLoading(true);
+                fetch(`/api/flowchart/articles/${articleId}/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        setArticle(data.article);
+                        // Filter out the source stage from related stages
+                        const stages = data.related_stages || [];
+                        const filteredStages = sourceStageId
+                            ? stages.filter(s => s.id !== sourceStageId)
+                            : stages;
+                        setRelatedStages(filteredStages);
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        console.error('Error fetching article:', err);
+                        setLoading(false);
+                    });
+            }, [articleId, sourceStageId]);
+
+            if (!articleId) return null;
+
+            const titleStyle = { marginBottom: '16px', color: '#1f2937' };
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div className="modal-title">
+                                {loading ? 'Se încarcă...' : `Art. ${article?.article_number}`}
+                            </div>
+                            <button className="modal-close" onClick={onClose}>&times;</button>
+                        </div>
+
+                        <div className="modal-body">
+                            {loading ? (
+                                <div className="loading">
+                                    <div className="loading-spinner"></div>
+                                    Se încarcă articolul...
+                                </div>
+                            ) : article ? (
+                                <>
+                                    {article.chapter && (
+                                        <div className="article-chapter">{article.chapter}</div>
+                                    )}
+                                    <h3 style={titleStyle}>{article.title}</h3>
+                                    <div className="article-content">{article.content}</div>
+
+                                    {relatedStages.length > 0 && (
+                                        <div className="related-stages">
+                                            <div className="related-stages-title">Etape asociate</div>
+                                            {relatedStages.map(stage => (
+                                                <div
+                                                    key={stage.id}
+                                                    className="related-stage-item"
+                                                    onClick={() => {
+                                                        onStageClick(stage.id);
+                                                        onClose();
+                                                    }}
+                                                >
+                                                    {stage.short_title}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div>Articolul nu a fost găsit</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // =====================
+        // Main Flowchart Component
+        // =====================
+        const FlowchartApp = () => {
+            const [nodes, setNodes, onNodesChange] = useNodesState([]);
+            const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+            const [loading, setLoading] = useState(true);
+            const [selectedArticle, setSelectedArticle] = useState({ articleId: null, stageId: null });
+            const [expandedNodes, setExpandedNodes] = useState(new Set());
+            const [highlightedNode, setHighlightedNode] = useState(null);
+            const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+            const [showMiniMap, setShowMiniMap] = useState(!isMobile());
+            const reactFlowInstance = useReactFlow();
+            const flowRef = useRef(null);
+            const expandedNodesRef = useRef(expandedNodes);
+            const initialNodesRef = useRef(null);
+            const [isInitialized, setIsInitialized] = useState(false);
+
+            // Keep ref in sync with state
+            useEffect(() => {
+                expandedNodesRef.current = expandedNodes;
+            }, [expandedNodes]);
+
+            // Handle window resize
+            useEffect(() => {
+                const handleResize = () => {
+                    setShowMiniMap(!isMobile());
+                };
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+
+            // Auto-layout using dagre
+            const getLayoutedElements = (nodes, edges, direction = 'TB') => {
+                const dagreGraph = new dagre.graphlib.Graph();
+                dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+                const nodeWidth = 340;
+                const nodeHeight = 180;
+
+                dagreGraph.setGraph({
+                    rankdir: direction,
+                    nodesep: 80,
+                    ranksep: 120,
+                    marginx: 50,
+                    marginy: 50
+                });
+
+                nodes.forEach((node) => {
+                    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+                });
+
+                edges.forEach((edge) => {
+                    dagreGraph.setEdge(edge.source, edge.target);
+                });
+
+                dagre.layout(dagreGraph);
+
+                const layoutedNodes = nodes.map((node) => {
+                    const nodeWithPosition = dagreGraph.node(node.id);
+                    return {
+                        ...node,
+                        position: {
+                            x: nodeWithPosition.x - nodeWidth / 2,
+                            y: nodeWithPosition.y - nodeHeight / 2,
+                        },
+                    };
+                });
+
+                return { nodes: layoutedNodes, edges };
+            };
+
+            // Transform API data to React Flow format
+            const transformData = useCallback((data, onExpand, onArticleClick) => {
+                const nodeList = data.nodes.map((stage) => ({
+                    id: String(stage.id),
+                    type: 'procedure',
+                    position: { x: 0, y: 0 },
+                    data: {
+                        id: stage.id,
+                        title: stage.title,
+                        shortTitle: stage.short_title,
+                        description: stage.description,
+                        nodeType: stage.node_type,
+                        categoryColor: stage.category_color,
+                        articles: stage.articles || [],
+                        childrenCount: stage.children_count || 0,
+                        deadlineNote: stage.deadline_note,
+                        expanded: expandedNodes.has(stage.id),
+                        highlighted: highlightedNode === stage.id,
+                        onExpand,
+                        onArticleClick
+                    }
+                }));
+
+                const edgeList = data.edges.map(conn => ({
+                    id: `e${conn.source}-${conn.target}`,
+                    source: String(conn.source),
+                    target: String(conn.target),
+                    label: conn.label || conn.condition || '',
+                    animated: conn.animated,
+                    style: { stroke: getEdgeColor(conn.edge_type) },
+                    markerEnd: { type: MarkerType.ArrowClosed }
+                }));
+
+                // Apply dagre layout
+                return getLayoutedElements(nodeList, edgeList, 'TB');
+            }, [expandedNodes, highlightedNode]);
+
+            const getEdgeColor = (edgeType) => {
+                const colors = {
+                    'success': '#22c55e',
+                    'failure': '#ef4444',
+                    'conditional': '#f59e0b',
+                    'optional': '#6b7280',
+                    'default': '#94a3b8'
+                };
+                return colors[edgeType] || colors.default;
+            };
+
+            // Load initial data
+            useEffect(() => {
+                setLoading(true);
+                fetch('/api/flowchart/')
+                    .then(res => res.json())
+                    .then(data => {
+                        const { nodes: n, edges: e } = transformData(
+                            data,
+                            handleExpandNode,
+                            handleArticleClick
+                        );
+                        // Store initial nodes for centering in onInit
+                        initialNodesRef.current = n;
+                        setNodes(n);
+                        setEdges(e);
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        console.error('Error loading flowchart:', err);
+                        setLoading(false);
+                    });
+            }, []);
+
+            // Center on start node when React Flow is initialized
+            const handleInit = useCallback(() => {
+                setIsInitialized(true);
+            }, []);
+
+            // Center on start node once initialized and nodes are loaded
+            useEffect(() => {
+                if (isInitialized && initialNodesRef.current && initialNodesRef.current.length > 0) {
+                    const n = initialNodesRef.current;
+                    // Find the start node (node_type === 'start') or just use the first node
+                    const startNode = n.find(node => node.data.nodeType === 'start') || n[0];
+                    if (startNode && reactFlowInstance) {
+                        // Use setCenter to focus on the start node with good zoom
+                        reactFlowInstance.setCenter(
+                            startNode.position.x + 150,
+                            startNode.position.y + 80,
+                            { zoom: 1.0, duration: 0 }
+                        );
+                        // Clear the ref so we don't re-center on subsequent re-renders
+                        initialNodesRef.current = null;
+                    }
+                }
+            }, [isInitialized, reactFlowInstance]);
+
+            // Re-transform when expanded nodes or highlight changes
+            useEffect(() => {
+                if (nodes.length > 0) {
+                    setNodes(nds => nds.map(node => ({
+                        ...node,
+                        data: {
+                            ...node.data,
+                            expanded: expandedNodes.has(parseInt(node.id)),
+                            highlighted: highlightedNode === parseInt(node.id)
+                        }
+                    })));
+                }
+            }, [expandedNodes, highlightedNode]);
+
+            // Handle node expansion
+            const handleExpandNode = useCallback((nodeId) => {
+                // Use ref to get current expandedNodes (avoids stale closure)
+                const currentExpanded = expandedNodesRef.current;
+
+                if (currentExpanded.has(nodeId)) {
+                    // Collapse: remove children nodes
+                    setExpandedNodes(prev => {
+                        const next = new Set(prev);
+                        next.delete(nodeId);
+                        return next;
+                    });
+
+                    // Get current nodes to find child IDs
+                    const currentNodes = reactFlowInstance.getNodes();
+                    const childIds = new Set(
+                        currentNodes
+                            .filter(n => parseInt(n.data?.parentId) === nodeId)
+                            .map(n => n.id)
+                    );
+
+                    // Remove child nodes from state
+                    setNodes(nds => nds.filter(n => {
+                        const parentId = parseInt(n.data?.parentId);
+                        return parentId !== nodeId;
+                    }));
+
+                    // Remove edges that involve child nodes
+                    setEdges(eds => eds.filter(e => {
+                        return !childIds.has(e.source) && !childIds.has(e.target);
+                    }));
+                } else {
+                    // Expand: fetch children
+                    fetch(`/api/flowchart/stages/${nodeId}/children/`)
+                        .then(res => res.json())
+                        .then(data => {
+                            // Use reactFlowInstance to get current node positions (not stale state)
+                            const currentNodes = reactFlowInstance.getNodes();
+                            const parentNode = currentNodes.find(n => parseInt(n.id) === nodeId);
+                            const parentX = parentNode ? parentNode.position.x : 0;
+                            const parentY = parentNode ? parentNode.position.y : 0;
+
+                            // Position children to the LEFT of the parent, stacked vertically
+                            const childSpacing = 220; // Vertical spacing between children
+                            const horizontalOffset = -420; // Distance to the left of parent
+
+                            // Start children at the same Y level as parent, going downward
+                            const startY = parentY;
+
+                            const newNodes = data.nodes.map((stage, index) => ({
+                                id: String(stage.id),
+                                type: 'procedure',
+                                position: {
+                                    x: parentX + horizontalOffset,
+                                    y: startY + index * childSpacing
+                                },
+                                data: {
+                                    id: stage.id,
+                                    parentId: nodeId,
+                                    title: stage.title,
+                                    shortTitle: stage.short_title,
+                                    description: stage.description,
+                                    nodeType: stage.node_type,
+                                    categoryColor: stage.category_color,
+                                    articles: stage.articles || [],
+                                    childrenCount: stage.children_count || 0,
+                                    deadlineNote: stage.deadline_note,
+                                    onExpand: handleExpandNode,
+                                    onArticleClick: handleArticleClick
+                                }
+                            }));
+
+                            const newEdges = data.edges.map(conn => ({
+                                id: `e${conn.source}-${conn.target}`,
+                                source: String(conn.source),
+                                target: String(conn.target),
+                                label: conn.label || conn.condition || '',
+                                animated: conn.animated,
+                                style: { stroke: getEdgeColor(conn.edge_type) },
+                                markerEnd: { type: MarkerType.ArrowClosed }
+                            }));
+
+                            setNodes(nds => [...nds, ...newNodes]);
+                            setEdges(eds => [...eds, ...newEdges]);
+                            setExpandedNodes(prev => new Set([...prev, nodeId]));
+                        })
+                        .catch(err => console.error('Error expanding node:', err));
+                }
+            }, [reactFlowInstance]);
+
+            // Handle article click
+            const handleArticleClick = useCallback((articleId, stageId = null) => {
+                setSelectedArticle({ articleId, stageId });
+            }, []);
+
+            // Navigate to node (from search)
+            const handleNodeSelect = useCallback((nodeId) => {
+                const node = nodes.find(n => parseInt(n.id) === nodeId);
+                if (node && reactFlowInstance) {
+                    reactFlowInstance.setCenter(node.position.x + 100, node.position.y + 50, {
+                        zoom: 1.2,
+                        duration: 500
+                    });
+                    setHighlightedNode(nodeId);
+                    setTimeout(() => setHighlightedNode(null), 3000);
+                }
+            }, [nodes, reactFlowInstance]);
+
+            // Export to PNG
+            const handleExportPNG = useCallback(() => {
+                if (!flowRef.current) return;
+
+                const viewport = flowRef.current.querySelector('.react-flow__viewport');
+                if (!viewport) return;
+
+                htmlToImage.toPng(viewport, {
+                    backgroundColor: SETTINGS.backgroundColor,
+                    quality: 1
+                }).then(dataUrl => {
+                    const link = document.createElement('a');
+                    link.download = 'procedura-penala.png';
+                    link.href = dataUrl;
+                    link.click();
+                }).catch(err => {
+                    console.error('Export error:', err);
+                    alert('Eroare la export. Încercați din nou.');
+                });
+            }, []);
+
+            if (loading) {
+                return (
+                    <div className="loading">
+                        <div className="loading-spinner"></div>
+                        Se încarcă diagrama...
+                    </div>
+                );
+            }
+
+            const flowContainerStyle = { width: '100%', height: '100%' };
+            // Use smaller zoom on mobile for better overview
+            const mobileZoom = isMobile() ? Math.min(SETTINGS.defaultZoom, 0.8) : SETTINGS.defaultZoom;
+            const defaultViewport = { zoom: mobileZoom, x: 0, y: 0 };
+
+            return (
+                <div className="flowchart-container">
+                    <div className="flowchart-header">
+                        <div className="header-left">
+                            <div className="flowchart-title">{SETTINGS.title}</div>
+                            {SETTINGS.subtitle && (
+                                <div className="flowchart-subtitle">{SETTINGS.subtitle}</div>
+                            )}
+                        </div>
+
+                        {/* Desktop search */}
+                        <SearchPanel
+                            onNodeSelect={handleNodeSelect}
+                            onArticleClick={handleArticleClick}
+                        />
+
+                        {/* Mobile search button */}
+                        <button
+                            className="mobile-menu-btn"
+                            onClick={() => setMobileSearchOpen(true)}
+                            aria-label="Căutare"
+                        >
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                        </button>
+
+                        <div className="export-buttons">
+                            <button className="export-btn primary" onClick={handleExportPNG}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                <span>Exportă PNG</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Mobile search overlay */}
+                    <div
+                        className={`mobile-search-overlay ${mobileSearchOpen ? 'active' : ''}`}
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) {
+                                setMobileSearchOpen(false);
+                            }
+                        }}
+                    >
+                        <SearchPanel
+                            mobile={true}
+                            onNodeSelect={handleNodeSelect}
+                            onArticleClick={handleArticleClick}
+                            onClose={() => setMobileSearchOpen(false)}
+                        />
+                    </div>
+
+                    <div ref={flowRef} style={flowContainerStyle}>
+                        <ReactFlowComponent
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onInit={handleInit}
+                            nodeTypes={nodeTypes}
+                            minZoom={SETTINGS.minZoom}
+                            maxZoom={SETTINGS.maxZoom}
+                            defaultViewport={defaultViewport}
+                            attributionPosition="bottom-left"
+                        >
+                            <Controls />
+                            {showMiniMap && (
+                                <MiniMap
+                                    nodeColor={(node) => node.data?.categoryColor || '#6b7280'}
+                                    maskColor="rgba(0,0,0,0.1)"
+                                />
+                            )}
+                            <Background variant="dots" gap={16} size={1} color="#e5e7eb" />
+                        </ReactFlowComponent>
+                    </div>
+
+                    <ArticleModal
+                        articleId={selectedArticle.articleId}
+                        sourceStageId={selectedArticle.stageId}
+                        onClose={() => setSelectedArticle({ articleId: null, stageId: null })}
+                        onStageClick={handleNodeSelect}
+                    />
+                </div>
+            );
+        };
+
+        // =====================
+        // App Root
+        // =====================
+        const App = () => (
+            <ReactFlowProvider>
+                <FlowchartApp />
+            </ReactFlowProvider>
+        );
+
+        // Render
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+    {% endverbatim %}
+</body>
+</html>
