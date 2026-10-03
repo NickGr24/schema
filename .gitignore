@@ -7,3 +7,10 @@ staticfiles/
 .vscode/
 .idea/
 .DS_Store
+env/
+.venv/
+node_modules/
+*.sqlite3
+media/
+*.pyc
+*.log
